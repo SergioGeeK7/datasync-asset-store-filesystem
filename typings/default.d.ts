@@ -6,5 +6,7 @@
 export declare const defaultConfig: {
     assetStore: {
         baseDir: string;
+        assetFolderPrefixKey: string;
+        pattern: string;
     };
 };

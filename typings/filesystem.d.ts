@@ -27,9 +27,6 @@ export declare class FsManager {
      * @param  {string} pth
      */
     private getAssetUrl;
-    /**
-     * @description Used to generate asset path from keys using asset
-     * @param  {any} asset: asset data
-     */
-    private urlFromObject;
+    private extractFolderPaths;
+    private patternInterpretation;
 }
