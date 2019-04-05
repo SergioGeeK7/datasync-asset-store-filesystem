@@ -30,32 +30,31 @@ class FsManager {
         return new Promise((resolve, reject) => {
             try {
                 const assetBasePath = this.assetConfig.assetStore.baseDir;
-                const assetsPath = path_1.default.join(assetBasePath, assetData.locale, 'assets');
                 const asset = assetData.data;
-                if (!fs_1.existsSync(assetsPath)) {
-                    mkdirp_1.default.sync(assetsPath, '0755');
-                }
-                //if (!existsSync(assetPath)) {
                 request_1.default.get({ url: encodeURI(asset.url) }).on('response', (resp) => {
                     if (resp.statusCode === 200) {
                         if (asset.hasOwnProperty('download_id')) {
                             let attachment = resp.headers['content-disposition'];
                             asset.filename = decodeURIComponent(attachment.split('=')[1]);
                         }
-                        const paths = assetsPath;
-                        const pths = this.extractFolderPaths(assetData);
-                        asset._internal_url = this.getAssetUrl(pths.join('/'), paths);
-                        pths.unshift(paths);
-                        const assetPath = path_1.default.join.apply(path_1.default, pths);
-                        const pth = assetPath.replace(asset.filename, '');
-                        if (!fs_1.existsSync(pth)) {
-                            mkdirp_1.default.sync(pth, '0755');
+                        const paths = this.extractFolderPaths(assetData);
+                        const filePath = path_1.default.join(assetBasePath, assetData.locale, path_1.default.join.apply(null, paths));
+                        asset._internal_url = path_1.default.join(assetData.locale, path_1.default.join.apply(null, paths));
+                        const folderPath = filePath.replace(asset.filename, '');
+                        if (!fs_1.existsSync(folderPath)) {
+                            mkdirp_1.default.sync(folderPath, '0755');
                         }
-                        const localStream = fs_1.createWriteStream(path_1.default.join(pth, asset.filename));
-                        resp.pipe(localStream);
-                        localStream.on('close', () => {
+                        if (!fs_1.existsSync(filePath)) {
+                            const localStream = fs_1.createWriteStream(path_1.default.join(folderPath, asset.filename));
+                            resp.pipe(localStream);
+                            localStream.on('close', () => {
+                                return resolve(assetData);
+                            });
+                        }
+                        else {
+                            debug(`Skipping asset download since it is already downloaded and it's present path is ${filePath} `);
                             return resolve(assetData);
-                        });
+                        }
                     }
                     else {
                         return reject(`${asset.uid} Asset download failed`);
@@ -63,10 +62,6 @@ class FsManager {
                 })
                     .on('error', reject)
                     .end();
-                // } else {
-                //   debug(`Skipping asset download since it is already downloaded and it's present path is ${assetPath} `);
-                //   return resolve(assetData);
-                // }
             }
             catch (error) {
                 debug(`${assetData.data.uid} Asset download failed`);
@@ -83,12 +78,13 @@ class FsManager {
         return new Promise((resolve, reject) => {
             try {
                 const assetBasePath = this.assetConfig.assetStore.baseDir;
-                const assetsPath = path_1.default.join(assetBasePath, asset.locale, 'assets');
-                const assetFolderPath = path_1.default.join(assetsPath, asset.uid);
-                if (fs_1.existsSync(assetFolderPath)) {
-                    rimraf_1.default(assetFolderPath, (error) => {
+                let pathArray = asset.data._internal_url.split(path_1.default.sep);
+                pathArray.splice(pathArray.length - 1, 1);
+                const assetPath = path_1.default.join(assetBasePath, pathArray.join(path_1.default.sep));
+                if (fs_1.existsSync(assetPath)) {
+                    rimraf_1.default(assetPath, (error) => {
                         if (error) {
-                            debug('Error while removing', assetFolderPath, 'asset file');
+                            debug('Error while removing', assetPath, 'asset file');
                             return reject(error);
                         }
                         debug('Asset removed successfully');
@@ -96,7 +92,7 @@ class FsManager {
                     });
                 }
                 else {
-                    debug(`${assetFolderPath} did not exist!`);
+                    debug(`${assetPath} did not exist!`);
                     return resolve(asset);
                 }
             }
@@ -114,12 +110,11 @@ class FsManager {
         return new Promise((resolve, reject) => {
             try {
                 const assetBasePath = this.assetConfig.assetStore.baseDir;
-                const assetsPath = path_1.default.join(assetBasePath, asset.locale, 'assets');
-                const assetFolderPath = path_1.default.join(assetsPath, asset.uid);
-                if (fs_1.existsSync(assetFolderPath)) {
-                    rimraf_1.default(assetFolderPath, (error) => {
+                const assetPath = path_1.default.join(assetBasePath, asset.data._internal_url);
+                if (fs_1.existsSync(assetPath)) {
+                    rimraf_1.default(assetPath, (error) => {
                         if (error) {
-                            debug('Error while removing', assetFolderPath, 'asset file');
+                            debug('Error while removing', assetPath, 'asset file');
                             return reject(error);
                         }
                         debug('Asset removed successfully');
@@ -127,34 +122,21 @@ class FsManager {
                     });
                 }
                 else {
-                    debug(`${assetFolderPath} did not exist!`);
+                    debug(`${assetPath} did not exist!`);
                     return resolve(asset);
                 }
-                return resolve(asset);
             }
             catch (error) {
                 reject(error);
             }
         });
     }
-    /**
-     * @description Generate the full assets url for the given url
-     * @param  {string} assetUrl
-     * @param  {string} pth
-     */
-    getAssetUrl(assetUrl, pth) {
-        const relativeUrlPrefix = pth.split(path_1.default.sep).reverse().slice(0, 2);
-        const code = relativeUrlPrefix[1].split('-')[0];
-        const url = (code === 'en') ? path_1.default.join('/', relativeUrlPrefix[0], assetUrl) :
-            path_1.default.join('/', code, relativeUrlPrefix[0], assetUrl);
-        return url;
-    }
     extractFolderPaths(asset) {
         const values = [];
         const keys = this.assetConfig.assetStore.keys;
-        // if (this.assetConfig.assetStore.assetFolderPrefixKey && typeof this.assetConfig.assetStore.assetFolderPrefixKey === 'string') {
-        //   values.push(this.assetConfig.assetStore.assetFolderPrefixKey)
-        // }
+        if (this.assetConfig.assetStore.assetFolderPrefixKey && typeof this.assetConfig.assetStore.assetFolderPrefixKey === 'string') {
+            values.push(this.assetConfig.assetStore.assetFolderPrefixKey);
+        }
         const regexp = new RegExp('https://(assets|images).contentstack.io/(v[\\d])/assets/(.*?)/(.*?)/(.*?)/(.*)', 'g');
         let matches;
         while ((matches = regexp.exec(asset.data.url)) !== null) {
@@ -171,6 +153,7 @@ class FsManager {
             }
         }
         debug(`extracting asset url from: ${JSON.stringify(asset.data)}.\nKeys expected from this asset are: ${JSON.stringify(keys)}`);
+        //values.push(asset.locale)
         for (let i = 0, keyLength = keys.length; i < keyLength; i++) {
             if (keys[i].charAt(0) !== ':') {
                 continue;

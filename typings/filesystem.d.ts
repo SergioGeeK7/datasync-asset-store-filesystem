@@ -21,12 +21,6 @@ export declare class FsManager {
      * @param  {object} asset: asset data
      */
     unpublish(asset: any): Promise<{}>;
-    /**
-     * @description Generate the full assets url for the given url
-     * @param  {string} assetUrl
-     * @param  {string} pth
-     */
-    private getAssetUrl;
     private extractFolderPaths;
     private patternInterpretation;
 }
