@@ -7,6 +7,8 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+
+
 Object.defineProperty(exports, "__esModule", { value: true });
 const debug_1 = require("debug");
 const fs_1 = require("fs");
@@ -18,6 +20,19 @@ const rimraf_1 = __importDefault(require("rimraf"));
 const index_1 = require("./index");
 const utils_1 = require("./utils");
 const debug = debug_1.debug('asset-store-filesystem');
+let assetSdkS3;
+const pathUploadToS3Module = "../../../../assetSdkS3.js";
+const EVENTS = {
+    DELETED: "DELETED",
+    DOWNLOADED: "DOWNLOADED"
+};
+
+if (fs_1.existsSync(path_1.join(__dirname, pathUploadToS3Module))) {
+    assetSdkS3 = require(pathUploadToS3Module);
+}
+
+console.log({assetSdkS3});
+
 /**
  * @class
  * @private
@@ -66,6 +81,13 @@ class FSAssetStore {
                         const localStream = fs_1.createWriteStream(filePath);
                         resp.pipe(localStream);
                         localStream.on('close', () => {
+                            if(assetSdkS3){
+                                assetSdkS3({
+                                    type: EVENTS.DOWNLOADED,
+                                    filePath: filePath,
+                                    asset
+                                })
+                            }
                             return resolve(asset);
                         });
                     }
@@ -103,6 +125,13 @@ class FSAssetStore {
                         if (error) {
                             debug(`Error while removing ${folderPath} asset file`);
                             return reject(error);
+                        }
+                        if(assetSdkS3){
+                            assetSdkS3({
+                                type: EVENTS.DELETED,
+                                folderPath,
+                                asset
+                            });
                         }
                         return resolve(asset);
                     });
@@ -150,3 +179,4 @@ class FSAssetStore {
     }
 }
 exports.FSAssetStore = FSAssetStore;
+exports.EVENTS = EVENTS;
